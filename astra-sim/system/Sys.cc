@@ -38,7 +38,7 @@ using namespace Chakra;
 using json = nlohmann::json;
 
 namespace AstraSim {
-uint8_t* Sys::dummy_data = new uint8_t[2];
+uint8_t* Sys::dummy_data = new uint8_t[2];//哑指针
 vector<Sys*> Sys::all_sys; //一个sys代表了一个计算节点
 
 // SchedulerUnit --------------------------------------------------------------
@@ -1248,6 +1248,14 @@ void Sys::proceed_to_next_vnet_baseline(StreamBaseline* stream) {
     scheduler_unit->notify_stream_added(stream->current_queue_id);
 }
 
+// Tick:当前动作的延迟时间
+// Buffer：缓冲区地址
+// count：发送的数据大小
+// Type: 数据类型:UINT8
+// request： 元数据
+// send_type：发送类型:NATIVE,COLLECTIVE,RENDEZVOUS
+// msg_handler: 回调函数指针
+// fun_arg: 回调函数的参数
 int Sys::front_end_sim_send(Tick delay,
                             void* buffer,
                             uint64_t count,

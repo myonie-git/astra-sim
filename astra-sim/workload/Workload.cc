@@ -402,15 +402,17 @@ void Workload::issue_send_comm(
     stats->get_operator_statistics(node->id()).comm_size = size;
     const auto tag = node->comm_tag<uint32_t>();
 
-    sim_request snd_req;
+    sim_request snd_req; //统计需要接受的请求
     snd_req.srcRank = src;
     snd_req.dstRank = dst;
     snd_req.reqType = UINT8;
-    SendPacketEventHandlerData* sehd = new SendPacketEventHandlerData;
+    SendPacketEventHandlerData* sehd = new SendPacketEventHandlerData; //创建一个event句柄
     sehd->callable = this;
-    sehd->wlhd = new WorkloadLayerHandlerData;
+    sehd->wlhd = new WorkloadLayerHandlerData; //指向回掉的send的sys id
     sehd->wlhd->node_id = node->id();
     sehd->event = EventType::PacketSent;
+    //sehd: 回调函数，最终会回调workload:call
+    //snd_req: 元数据
     sys->front_end_sim_send(0, Sys::dummy_data, size, UINT8, dst, tag, &snd_req,
                             Sys::FrontEndSendRecvType::NATIVE,
                             &Sys::handleEvent, sehd);
