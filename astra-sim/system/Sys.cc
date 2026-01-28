@@ -39,7 +39,7 @@ using json = nlohmann::json;
 
 namespace AstraSim {
 uint8_t* Sys::dummy_data = new uint8_t[2];
-vector<Sys*> Sys::all_sys;
+vector<Sys*> Sys::all_sys; //一个sys代表了一个计算节点
 
 // SchedulerUnit --------------------------------------------------------------
 Sys::SchedulerUnit::SchedulerUnit(Sys* sys,
@@ -462,7 +462,7 @@ void Sys::call_events() {
     for (auto& callable : event_queue[Sys::boostedTick()]) {
         try {
             pending_events--;
-            (get<0>(callable))->call(get<1>(callable), get<2>(callable));
+            (get<0>(callable))->call(get<1>(callable), get<2>(callable));//调用callable中的第0个参数的call方法，1，2参数作为输入 callable, event, callData
         } catch (const std::exception& e) {
             auto logger = LoggerFactory::get_logger("system");
             logger->critical("warning! a callable is removed before call {}",
@@ -482,13 +482,18 @@ void Sys::register_event(Callable* callable,
     try_register_event(callable, event, callData, delta_cycles);
 }
 
+// callable： 事件被触发的处理者		
+// event： event的类型，event_type中有详细的描述，根据type执行不同的逻辑
+// callData：事件的上下文以及数据
+// delta_cycles：事件会在多少个cycle后发生
+
 void Sys::try_register_event(Callable* callable,
                              EventType event,
                              CallData* callData,
                              Tick& delta_cycles) {
     bool should_schedule = false;
     auto event_time = Sys::boostedTick() + delta_cycles;
-    if (event_queue.find(event_time) == event_queue.end()) {
+    if (event_queue.find(event_time) == event_queue.end()) { //这个时间点不存在event
         list<tuple<Callable*, EventType, CallData*>> tmp;
         event_queue[event_time] = tmp;
         should_schedule = true;
@@ -500,7 +505,7 @@ void Sys::try_register_event(Callable* callable,
         tmp.time_val = delta_cycles;
         BasicEventHandlerData* data =
             new BasicEventHandlerData(id, EventType::CallEvents);
-        data->sys_id = id;
+        data->sys_id = id; //记录sys_id和event，一个调用event
         comm_NI->sim_schedule(tmp, &Sys::handleEvent, data);
     }
     delta_cycles = 0;
@@ -1264,7 +1269,7 @@ int Sys::front_end_sim_send(Tick delay,
     } else {
         sys_panic("A type of RENDZVOUS should never issued in frontend");
     }
-    if (rendezvous_enabled) {
+    if (rendezvous_enabled) { //是否握手
         return rendezvous_sim_send(delay, buffer, count, type, dst, tag,
                                    request, msg_handler, fun_arg);
     } else {

@@ -158,7 +158,7 @@ void Workload::issue(shared_ptr<Chakra::FeederV3::ETFeederNode> node) {
                       static_cast<uint64_t>(node->type()));
     }
 
-    this->et_feeder->getDependancyResolver().take_node(node->id());
+    this->et_feeder->getDependancyResolver().take_node(node->id()); //更新依赖图
     this->hw_resource->occupy(node);
     // stats->record_end will be called in Workload::call
     stats->record_start(node, Sys::boostedTick());
@@ -367,7 +367,7 @@ void Workload::issue_coll_comm(
                                                    comm_group, comm_priority, node->id());
         collective_comm_node_id_map[fp->my_id] = node->id();
         collective_comm_wrapper_map[fp->my_id] = fp;
-        fp->set_notifier(this, EventType::CollectiveCommunicationFinished);
+        fp->set_notifier(this, EventType::CollectiveCommunicationFinished); //设置回调函数，当这个event完成时，通知workload
     } else if (comm_type == ChakraCollectiveCommType::BROADCAST) {
         // TODO: implement broadcast, for now just replay
         uint64_t runtime = 1ul;
@@ -439,7 +439,7 @@ void Workload::issue_recv_comm(
                             &Sys::handleEvent, rcehd);
 }
 
-void Workload::skip_invalid(shared_ptr<Chakra::FeederV3::ETFeederNode> node) {
+void Workload::skip_invalid(shared_ptr<Chakra::FeederV3::ETFeederNode> node) { //跳过一些不重要的节点
     const auto node_id = node->id();
     auto& dependancy_resolver = this->et_feeder->getDependancyResolver();
     dependancy_resolver.finish_node(node_id);
@@ -460,7 +460,7 @@ void Workload::call(EventType event, CallData* data) {
         return;
     }
 
-    if (event == EventType::CollectiveCommunicationFinished) {
+    if (event == EventType::CollectiveCommunicationFinished) { //集合通信完成
         IntData* int_data = (IntData*)data;
         uint64_t coll_comm_id = int_data->data;
 
@@ -504,7 +504,7 @@ void Workload::call(EventType event, CallData* data) {
 
     } else {
         if (data == nullptr) {
-            issue_dep_free_nodes();
+            issue_dep_free_nodes(); //当没有数据传输时候，直接发送没有依赖的节点
         } else {
             WorkloadLayerHandlerData* wlhd = (WorkloadLayerHandlerData*)data;
             shared_ptr<Chakra::FeederV3::ETFeederNode> node =
@@ -550,7 +550,7 @@ void Workload::call(EventType event, CallData* data) {
     }
 
     const auto& dep_resolver = this->et_feeder->getDependancyResolver();
-    if ((dep_resolver.get_dependancy_free_nodes().empty()) &&
+    if ((dep_resolver.get_dependancy_free_nodes().empty()) && //如果都完成了，则生成报告，并通知后端
         (dep_resolver.get_ongoing_nodes().empty()) &&
         (hw_resource->num_in_flight_cpu_ops == 0) &&
         (hw_resource->num_in_flight_gpu_comp_ops == 0) &&
@@ -562,7 +562,7 @@ void Workload::call(EventType event, CallData* data) {
 }
 
 void Workload::fire() {
-    call(EventType::General, NULL);
+    call(EventType::General, NULL); //EventType::General: 一般用于通用时间，主要用于一些回调函数
 }
 
 void Workload::report() {

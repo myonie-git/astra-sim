@@ -7,6 +7,7 @@ More examples can also be found in the [ASTRA-sim tutorials](https://astra-sim.g
     - All-Gather
     - Reduce-Scatter
     - All-to-All
+    - Send/Recv (2-NPU point-to-point sample at `microbenchmarks/send_recv/2npus_1MB`; regenerate with `examples/workload/microbenchmarks/generator_scripts/send_recv.py`)
 
 *Note: For generating synthetic ETs for realistic workloads (including both compute and communication), you can use [STG](https://github.com/astra-sim/symbolic_tensor_graph). For information on collecting ETs from real-systems, check out the [Chakra wiki](https://github.com/mlcommons/chakra/wiki).*
 

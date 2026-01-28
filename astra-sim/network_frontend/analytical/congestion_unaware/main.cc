@@ -48,11 +48,11 @@ int main(int argc, char* argv[]) {
     AstraSim::LoggerFactory::init(logging_configuration, logging_folder);
 
     // Instantiate event queue
-    const auto event_queue = std::make_shared<EventQueue>();
+    const auto event_queue = std::make_shared<EventQueue>(); //创建一个event queue
 
     // Generate topology
     const auto network_parser = NetworkParser(network_configuration);
-    const auto topology = construct_topology(network_parser);
+    const auto topology = construct_topology(network_parser); 
 
     // Get topology information
     const auto npus_count = topology->get_npus_count();
