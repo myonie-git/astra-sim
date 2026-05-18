@@ -17,7 +17,7 @@ namespace AstraSim {
 
 class RingTopology : public BasicLogicalTopology {
   public:
-    enum class Direction { Clockwise, Anticlockwise };
+    enum class Direction { Clockwise, Anticlockwise }; //顺时针，逆时针
     enum class Dimension { Local, Vertical, Horizontal, NA };
     int get_num_of_nodes_in_dimension(int dimension) override;
     RingTopology(Dimension dimension,

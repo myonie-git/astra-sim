@@ -71,16 +71,16 @@ Sys::SchedulerUnit::SchedulerUnit(Sys* sys,
     }
 }
 
-void Sys::SchedulerUnit::notify_stream_added(int vnet) {
+void Sys::SchedulerUnit::notify_stream_added(int vnet) {//当系统把一个新的流（Stream）加入到某个网络队列（vnet）时，调度器会收到通知。调度器会更新该队列所属维度的活跃负载统计，在不超出vnet并发上线的前提夏，按顺序激活vnet内排队的数据流，让他们真正开始向物理层底层发包  //vnet这个queue / virtual network上新加了一个stream
     if (sys->id == 0 &&
-        ++total_active_chunks_per_dimension[queue_id_to_dimension[vnet]] == 1) {
+        ++total_active_chunks_per_dimension[queue_id_to_dimension[vnet]] == 1) {//这个维度上刚刚有一个活跃chunk的话（即从空闲切换为正在使用）
         usage[queue_id_to_dimension[vnet]].increase_usage();
     }
     stream_pointer[vnet] = sys->active_Streams[vnet].begin();
     advance(stream_pointer[vnet], running_streams[vnet]);
     while (stream_pointer[vnet] != sys->active_Streams[vnet].end() &&
            running_streams[vnet] < queue_threshold) {
-        (*stream_pointer[vnet])->init();
+        (*stream_pointer[vnet])->init(); //如果没到queue的threshold，则激活该stream
         running_streams[vnet]++;
         advance(stream_pointer[vnet], 1);
     }
@@ -684,17 +684,17 @@ DataSet* Sys::generate_collective(
     DataSet* dataset = new DataSet(streams);
     int pri = get_priority(explicit_priority);
     int count = 0;
-    if (id == 0 && (inter_dimension_scheduling ==
+    if (id == 0 && (inter_dimension_scheduling == 
                         InterDimensionScheduling::OfflineGreedy ||
                     inter_dimension_scheduling ==
-                        InterDimensionScheduling::OfflineGreedyFlex)) {
+                        InterDimensionScheduling::OfflineGreedyFlex)) { //reset 上一次的记录
         if (last_scheduled_collective != Sys::boostedTick()) {
             offline_greedy->reset_loads();
             last_scheduled_collective = Sys::boostedTick();
         }
     }
 
-    if (implementation_per_dimension[0]->type == CollectiveImplType::CustomCollectiveImpl) {
+    if (implementation_per_dimension[0]->type == CollectiveImplType::CustomCollectiveImpl) { //custom情况
         // For custom collective, we create a single stream covering the entire data size,
         // and ignore all the logic below.
         int pos_in_comm = id;
@@ -725,13 +725,13 @@ DataSet* Sys::generate_collective(
         return dataset;
     }
 
-    while (size > 0) {
+    while (size > 0) { //普通情况
         count++;
 
         vector<int> dim_mapper(topology->get_num_of_dimensions());
-        iota(begin(dim_mapper), end(dim_mapper), 0);
-        if (collective_type == ComType::All_Gather) {
-            reverse(dim_mapper.begin(), dim_mapper.end());
+        iota(begin(dim_mapper), end(dim_mapper), 0);//生成从0开始的顺序递增序列 （优先级）
+        if (collective_type == ComType::All_Gather) { //对于all gather，进行反转，原因可以参照：https://www.yuque.com/u953085/fk8874/gzq0nfg32fd57b0c/edit?toc_node_uuid=M9QMtTMWZxVC8TyF
+            reverse(dim_mapper.begin(), dim_mapper.end()); 
         }
 
         if (inter_dimension_scheduling ==
@@ -748,7 +748,7 @@ DataSet* Sys::generate_collective(
                    (inter_dimension_scheduling ==
                         InterDimensionScheduling::OfflineGreedy ||
                     inter_dimension_scheduling ==
-                        InterDimensionScheduling::OfflineGreedyFlex)) {
+                        InterDimensionScheduling::OfflineGreedyFlex)) {//根据根据当前负载、collective 类型、剩余 size、推荐 chunk_size 等,决定本次 stream 的维度访问顺序 dim_mapper, 以及本次 stream 实际切多少 chunk（通过修改 size 实现）
             uint64_t prev_size = size;
             dim_mapper = offline_greedy->get_chunk_scheduling(
                 num_streams, size, recommended_chunk_size, dimensions_involved,
@@ -775,18 +775,18 @@ DataSet* Sys::generate_collective(
             for (int dim = 0; dim < topology->get_num_of_dimensions(); dim++) {
                 if (topology->get_num_of_nodes_in_dimension(dim_mapper[dim]) ==
                         1 ||
-                    !dimensions_involved[dim_mapper[dim]]) {
+                    !dimensions_involved[dim_mapper[dim]]) {  //跳过没必要处理的维度（）
                     continue;
                 }
                 pair<int, RingTopology::Direction> queue =
-                    vLevels->get_next_queue_at_level(dim_mapper[dim]);
+                    vLevels->get_next_queue_at_level(dim_mapper[dim]);//获取该维度上的下一条队列，以及方向，可以参考：https://www.yuque.com/u953085/fk8874/kywzii16zn85sg6d/edit?toc_node_uuid=M9QMtTMWZxVC8TyF
                 CollectivePhase phase = generate_collective_phase(
                     collective_type,
                     topology->get_basic_topology_at_dimension(dim_mapper[dim],
                                                               collective_type),
                     remain_size, queue.first, queue.second,
                     InjectionPolicy::Normal,
-                    implementation_per_dimension[dim_mapper[dim]]);
+                    implementation_per_dimension[dim_mapper[dim]]); //实现算法
                 vect.push_back(phase);
                 remain_size = phase.final_data_size;
             }
@@ -942,13 +942,13 @@ DataSet* Sys::generate_collective(
                 remain_size = phase.final_data_size;
             }
         }
-        if (vect.size() > 0) {
+        if (vect.size() > 0) { //生成了至少一个Phase，将其注册成stream
             int stream_id = num_streams++;
             if (communicator_group != nullptr) {
                 stream_id = communicator_group->num_streams++;
             }
             StreamBaseline* newStream =
-                new StreamBaseline(this, dataset, stream_id, vect, pri);
+                new StreamBaseline(this, dataset, stream_id, vect, pri); //创建stream
             newStream->current_queue_id = -1;
             insert_into_ready_list(newStream);
         } else {
@@ -1042,24 +1042,24 @@ void Sys::insert_into_ready_list(BaseStream* stream) {
     scheduler_unit->notify_stream_added_into_ready_list();
 }
 
-void Sys::insert_stream(list<BaseStream*>* queue, BaseStream* baseStream) {
+void Sys::insert_stream(list<BaseStream*>* queue, BaseStream* baseStream) {//根据系统配置的“维内调度策略（IntraDimensionScheduling）”，把一个新来的集体通信流（baseStream）插入到某个具体维度的网络队列（queue）中
     list<BaseStream*>::iterator it = queue->begin();
     if (intra_dimension_scheduling == IntraDimensionScheduling::FIFO ||
         baseStream->current_queue_id < 0 ||
         baseStream->current_com_type == ComType::All_to_All ||
         baseStream->current_com_type == ComType::All_Reduce) {
         while (it != queue->end()) {
-            if ((*it)->initialized == true) {
+            if ((*it)->initialized == true) { //跳过已经初始化的stream
                 advance(it, 1);
                 continue;
-            } else if ((*it)->priority >= baseStream->priority) {
+            } else if ((*it)->priority >= baseStream->priority) { //跳过优先级比他低的stream
                 advance(it, 1);
                 continue;
             } else {
                 break;
             }
         }
-    } else if (intra_dimension_scheduling == IntraDimensionScheduling::RG) {
+    } else if (intra_dimension_scheduling == IntraDimensionScheduling::RG) {//Ring/Reduce-Gather 交替优化策略
         ComType one_to_last = ComType::None;
         ComType last = ComType::None;
         while (it != queue->end()) {
@@ -1087,7 +1087,7 @@ void Sys::insert_stream(list<BaseStream*>* queue, BaseStream* baseStream) {
             }
         }
     } else if (intra_dimension_scheduling ==
-               IntraDimensionScheduling::SmallestFirst) {
+               IntraDimensionScheduling::SmallestFirst) { //最小数据量优先
         if (baseStream->phases_to_go.size() == 1) {
             it = queue->end();
         }
@@ -1106,7 +1106,7 @@ void Sys::insert_stream(list<BaseStream*>* queue, BaseStream* baseStream) {
             }
         }
     } else if (intra_dimension_scheduling ==
-               IntraDimensionScheduling::LessRemainingPhaseFirst) {
+               IntraDimensionScheduling::LessRemainingPhaseFirst) { //剩余阶段最小者优先
         while (it != queue->end()) {
             if ((*it)->initialized == true) {
                 advance(it, 1);
@@ -1149,7 +1149,7 @@ void Sys::ask_for_schedule(int max) {
     return;
 }
 
-void Sys::schedule(int num) {
+void Sys::schedule(int num) { //从ready_list中提取最大num数量的stream，激活其第一个通信阶段开始执行（proceed_to_next_vnet），并更新系统的并发流计数器
     int ready_list_size = ready_list.size();
     int counter = min(num, ready_list_size);
     while (counter > 0) {
@@ -1157,7 +1157,7 @@ void Sys::schedule(int num) {
         int total_waiting_streams = ready_list.size();
         int total_phases = ready_list.front()->phases_to_go.size();
 
-        proceed_to_next_vnet_baseline((StreamBaseline*)ready_list.front());
+        proceed_to_next_vnet_baseline((StreamBaseline*)ready_list.front()); 
 
         if (ready_list.front()->current_queue_id == -1) {
             Sys::sys_panic(
@@ -1179,22 +1179,22 @@ void Sys::schedule(int num) {
     }
 }
 
-void Sys::proceed_to_next_vnet_baseline(StreamBaseline* stream) {
+void Sys::proceed_to_next_vnet_baseline(StreamBaseline* stream) {//把一个 StreamBaseline 从当前 phase/queue 中收尾移除，切换到下一个 phase 并重新加入对应队列；如果已经没有后续 phase，就完成统计并删除该 stream。
     int previous_vnet = stream->current_queue_id;
     if (stream->steps_finished == 1) {
-        first_phase_streams--;
+        first_phase_streams--; //如果之前第一个阶段被完成，首phase计数器-1
     }
-    if (stream->steps_finished != 0) {
+    if (stream->steps_finished != 0) { //若某个阶段完成，统计其平均延迟时间
         stream->net_message_latency.back() /= stream->net_message_counter;
     }
     if (stream->my_current_phase.algorithm != nullptr) {
-        delete stream->my_current_phase.algorithm;
+        delete stream->my_current_phase.algorithm; //删除刚才phase用到的集合通信对象
     }
-    if (stream->phases_to_go.size() == 0) {
+    if (stream->phases_to_go.size() == 0) { //if 所有phase都结束了
         stream->take_bus_stats_average();
         stream->dataset->notify_stream_finished((StreamStat*)stream);
     }
-    if (stream->current_queue_id >= 0 && stream->my_current_phase.enabled) {
+    if (stream->current_queue_id >= 0 && stream->my_current_phase.enabled) { //执行完的这个phase有效，与之前的queue解绑
         list<BaseStream*>& target =
             active_Streams.at(stream->my_current_phase.queue_id);
         for (list<BaseStream*>::iterator it = target.begin();
@@ -1205,7 +1205,7 @@ void Sys::proceed_to_next_vnet_baseline(StreamBaseline* stream) {
             }
         }
     }
-    if (stream->phases_to_go.size() == 0) {
+    if (stream->phases_to_go.size() == 0) { //phase彻底完成
         total_running_streams--;
         if (previous_vnet >= 0) {
             scheduler_unit->notify_stream_removed(
@@ -1222,7 +1222,7 @@ void Sys::proceed_to_next_vnet_baseline(StreamBaseline* stream) {
     }
     stream->current_queue_id = stream->phases_to_go.front().queue_id;
     stream->current_com_type = stream->phases_to_go.front().comm_type;
-
+    //重置默认状态
     CollectivePhase vi = stream->phases_to_go.front();
     stream->my_current_phase = vi;
     stream->phases_to_go.pop_front();
@@ -1234,18 +1234,18 @@ void Sys::proceed_to_next_vnet_baseline(StreamBaseline* stream) {
 
     stream->net_message_latency.push_back(0);
     stream->net_message_counter = 0;
-
+    //如果当前stream有效，将其插入
     if (stream->my_current_phase.enabled) {
-        insert_stream(&active_Streams[stream->current_queue_id], stream);
+        insert_stream(&active_Streams[stream->current_queue_id], stream);//根据系统配置的“维内调度策略（IntraDimensionScheduling）”，把一个新来的集体通信流（baseStream）插入到某个具体维度的网络队列（queue）中
     }
 
-    stream->state = StreamState::Ready;
+    stream->state = StreamState::Ready; //将stream的状态设置为ready
 
-    if (previous_vnet >= 0) {
+    if (previous_vnet >= 0) { //移除上一个phase
         scheduler_unit->notify_stream_removed(
             previous_vnet, Sys::boostedTick() - stream->last_init);
     }
-    scheduler_unit->notify_stream_added(stream->current_queue_id);
+    scheduler_unit->notify_stream_added(stream->current_queue_id); //核心
 }
 
 // Tick:当前动作的延迟时间

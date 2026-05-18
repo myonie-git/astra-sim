@@ -44,15 +44,15 @@ void MemBus::send_from_NPU_to_MA(MemBus::Transmition transmition,
                                  bool processed,
                                  bool send_back,
                                  Callable* callable) {
-    if (model_shared_bus && transmition == Transmition::Usual) {
+    if (model_shared_bus && transmition == Transmition::Usual) {//精细的共享总线模型
         NPU_side->request_read(bytes, processed, send_back, callable);
     } else {
-        if (transmition == Transmition::Fast) {
+        if (transmition == Transmition::Fast) { // 简单的固定延迟模型
             SharedBusStat* ss = new SharedBusStat(BusType::Shared, 0, 10, 0, 0);
             ss->sys_id = sys->id;
             ss->event = EventType::NPU_to_MA;
             sys->register_event(callable, EventType::NPU_to_MA, ss, 10);
-        } else {
+        } else { //使用communication delay
             SharedBusStat* ss = new SharedBusStat(BusType::Shared, 0,
                                                   communication_delay, 0, 0);
             ss->sys_id = sys->id;

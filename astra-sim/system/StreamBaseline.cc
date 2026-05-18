@@ -30,7 +30,7 @@ void StreamBaseline::init() {
     if (!my_current_phase.enabled) {
         return;
     }
-    my_current_phase.algorithm->run(EventType::StreamInit, nullptr);
+    my_current_phase.algorithm->run(EventType::StreamInit, nullptr);//调用Ring::run/AllToALL:run等
     if (steps_finished == 1) {
         queuing_delay.push_back(last_phase_change - creation_time);
     }

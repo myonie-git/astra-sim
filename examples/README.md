@@ -9,6 +9,8 @@ More examples can also be found in the [ASTRA-sim tutorials](https://astra-sim.g
     - All-to-All
     - Send/Recv (2-NPU point-to-point sample at `microbenchmarks/send_recv/2npus_1MB`; regenerate with `examples/workload/microbenchmarks/generator_scripts/send_recv.py`)
     - Compute (4-NPU roofline sample at `microbenchmarks/compute/4npus_1MB`; regenerate with `examples/workload/microbenchmarks/generator_scripts/compute.py`)
+- `models`: Example workloads derived from running real PyTorch models and exporting to Chakra ET.
+    - ResNet9 data-parallel (4 ranks): `workload/models/resnet9_data_parallel/4npus_bs4_1iter/resnet9_dp` (regenerate with `torchrun --standalone --nproc_per_node=4 examples/workload/models/resnet9_data_parallel/gen_et.py ...`)
 
 *Note: For generating synthetic ETs for realistic workloads (including both compute and communication), you can use [STG](https://github.com/astra-sim/symbolic_tensor_graph). For information on collecting ETs from real-systems, check out the [Chakra wiki](https://github.com/mlcommons/chakra/wiki).*
 

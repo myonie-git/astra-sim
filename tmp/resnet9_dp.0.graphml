@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d1" for="edge" attr.name="dependency" attr.type="string"/>
+<key id="d0" for="node" attr.name="label" attr.type="string"/>
+<graph edgedefault="directed"><node id="0">
+  <data key="d0">iter0_fwd_bwd</data>
+</node>
+<node id="1">
+  <data key="d0">iter0_allreduce_grads</data>
+</node>
+<node id="2">
+  <data key="d0">iter0_optimizer_step</data>
+</node>
+<edge source="0" target="1">
+  <data key="d1">control</data>
+</edge>
+<edge source="1" target="2">
+  <data key="d1">control</data>
+</edge>
+</graph></graphml>

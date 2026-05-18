@@ -17,16 +17,16 @@ Ring::Ring(ComType type,
            RingTopology::Direction direction,
            InjectionPolicy injection_policy)
     : Algorithm() {
-    this->comType = type;
-    this->id = id;
+    this->comType = type; //通信类型：如All_gather
+    this->id = id; //当前rank
     this->logical_topo = ring_topology;
-    this->data_size = data_size;
-    this->direction = direction;
-    this->nodes_in_ring = ring_topology->get_nodes_in_ring();
-    this->curr_receiver = ring_topology->get_receiver(id, direction);
-    this->curr_sender = ring_topology->get_sender(id, direction);
-    this->parallel_reduce = 1;
-    this->injection_policy = injection_policy;
+    this->data_size = data_size; 
+    this->direction = direction; //传输，顺时针还是逆时针
+    this->nodes_in_ring = ring_topology->get_nodes_in_ring(); //环上节点数
+    this->curr_receiver = ring_topology->get_receiver(id, direction); //当前rank的接收者
+    this->curr_sender = ring_topology->get_sender(id, direction); //当前rank的发送者
+    this->parallel_reduce = 1; //默认并行度
+    this->injection_policy = injection_policy; //注入策略
     this->total_packets_sent = 0;
     this->total_packets_received = 0;
     this->free_packets = 0;
@@ -34,14 +34,14 @@ Ring::Ring(ComType type,
     this->non_zero_latency_packets = 0;
     this->toggle = false;
     this->name = Name::Ring;
-    if (ring_topology->get_dimension() == RingTopology::Dimension::Local) {
-        transmition = MemBus::Transmition::Fast;
+    if (ring_topology->get_dimension() == RingTopology::Dimension::Local) {//根据是Local还是Remote选择Membus的建模方式 
+        transmition = MemBus::Transmition::Fast; //固定10个tick的延迟
     } else {
-        transmition = MemBus::Transmition::Usual;
+        transmition = MemBus::Transmition::Usual; //用配置的communication_delay
     }
     switch (type) {
     case ComType::All_Reduce:
-        stream_count = 2 * (nodes_in_ring - 1);
+        stream_count = 2 * (nodes_in_ring - 1); //ring all reduce = reduce_scatter + all gather
         break;
     case ComType::All_to_All:
         this->stream_count = ((nodes_in_ring - 1) * nodes_in_ring) / 2;
@@ -61,7 +61,7 @@ Ring::Ring(ComType type,
         stream_count = nodes_in_ring - 1;
     }
     if (type == ComType::All_to_All || type == ComType::All_Gather) {
-        max_count = 0;
+        max_count = 0; //max_count 是一个“批次计数器/节流计数器”：用来控制 什么时候把已经锁住的 packet（locked_packets）打包并真正发到 MemBus 上 https://www.yuque.com/u953085/fk8874/ymu7s3t9x2cflwic/edit?toc_node_uuid=M9QMtTMWZxVC8TyF
     } else {
         max_count = nodes_in_ring - 1;
     }
@@ -69,8 +69,8 @@ Ring::Ring(ComType type,
     remained_packets_per_max_count = 1;
     switch (type) {
     case ComType::All_Reduce:
-        this->final_data_size = data_size;
-        this->msg_size = data_size / nodes_in_ring;
+        this->final_data_size = data_size;  //每个Rank上的数据量
+        this->msg_size = data_size / nodes_in_ring; // Msg_size: send/recv的字节数
         break;
     case ComType::All_Gather:
         this->final_data_size = data_size * nodes_in_ring;
@@ -93,21 +93,21 @@ int Ring::get_non_zero_latency_packets() {
 }
 
 void Ring::run(EventType event, CallData* data) {
-    if (event == EventType::General) {
+    if (event == EventType::General) { //General事件，可以多发一个包了
         free_packets += 1;
         ready();
         iteratable();
-    } else if (event == EventType::PacketReceived) {
+    } else if (event == EventType::PacketReceived) { //收到上游来的包了
         total_packets_received++;
         insert_packet(nullptr);
-    } else if (event == EventType::StreamInit) {
+    } else if (event == EventType::StreamInit) { // 首次启动
         for (int i = 0; i < parallel_reduce; i++) {
-            insert_packet(nullptr);
+            insert_packet(nullptr);//插入parallel_reduce个包，由InjectionPolicy设置，Normal为1 
         }
     }
 }
 
-void Ring::release_packets() {
+void Ring::release_packets() {//把刚才在 insert_packet 里生成并“锁住（locked）”的数据包，打包成一个 PacketBundle，并交给本地的内存总线（MemBus）去模拟数据在节点内部的搬运和计算延迟，并触发General，返回run。
     for (auto packet : locked_packets) {
         packet->set_notifier(this);
     }
@@ -169,17 +169,17 @@ bool Ring::iteratable() {
 }
 
 void Ring::insert_packet(Callable* sender) {
-    if (zero_latency_packets == 0 && non_zero_latency_packets == 0) {
-        zero_latency_packets = parallel_reduce * 1;
+    if (zero_latency_packets == 0 && non_zero_latency_packets == 0) { //起始包 & 中继包，在本轮中的额度都为0了，轮的概念：https://www.yuque.com/u953085/fk8874/rnva9d3ze3115zf8/edit?toc_node_uuid=M9QMtTMWZxVC8TyF
+        zero_latency_packets = parallel_reduce * 1; //重新配置两种包的额度
         non_zero_latency_packets =
             get_non_zero_latency_packets();  //(nodes_in_ring-1)*parallel_reduce*1;
         toggle = !toggle;
     }
     if (zero_latency_packets > 0) {
-        packets.push_back(MyPacket(
+        packets.push_back(MyPacket(//创建一个新包，并指定接收者和发送者
             stream->current_queue_id, curr_sender,
             curr_receiver));  // vnet Must be changed for alltoall topology
-        packets.back().sender = sender;
+        packets.back().sender = sender; //.back() 最后一个元素
         locked_packets.push_back(&packets.back());
         processed = false;
         send_back = false;
@@ -214,11 +214,11 @@ void Ring::insert_packet(Callable* sender) {
 
 bool Ring::ready() {
     if (stream->state == StreamState::Created ||
-        stream->state == StreamState::Ready) {
+        stream->state == StreamState::Ready) { //stream正式进行通信，将状态改为ready
         stream->changeState(StreamState::Executing);
     }
     if (packets.size() == 0 || stream_count == 0 || free_packets == 0) {
-        return false;
+        return false; //如果无法继续推进包的发送，就退出
     }
     MyPacket packet = packets.front();
     sim_request snd_req;
@@ -227,12 +227,12 @@ bool Ring::ready() {
     snd_req.tag = stream->stream_id;
     snd_req.reqType = UINT8;
     snd_req.vnet = this->stream->current_queue_id;
-    stream->owner->front_end_sim_send(
+    stream->owner->front_end_sim_send( //调用sim_send发包
         0, Sys::dummy_data, msg_size, UINT8, packet.preferred_dest,
         stream->stream_id, &snd_req, Sys::FrontEndSendRecvType::COLLECTIVE,
         &Sys::handleEvent,
         nullptr);  // stream_id+(packet.preferred_dest*50)
-    sim_request rcv_req;
+    sim_request rcv_req;//构造recv请求
     rcv_req.vnet = this->stream->current_queue_id;
     RecvPacketEventHandlerData* ehd = new RecvPacketEventHandlerData(
         stream, stream->owner->id, EventType::PacketReceived,
@@ -242,7 +242,7 @@ bool Ring::ready() {
         stream->stream_id, &rcv_req, Sys::FrontEndSendRecvType::COLLECTIVE,
         &Sys::handleEvent,
         ehd);  // stream_id+(owner->id*50)
-    reduce();
+    reduce(); ///状态推进
     return true;
 }
 

@@ -347,8 +347,8 @@ void Workload::issue_coll_comm(
     if (comm_type == ChakraCollectiveCommType::ALL_REDUCE) {
         DataSet* fp = sys->generate_all_reduce(comm_size, involved_dims,
                                                comm_group, comm_priority, node->id());
-        collective_comm_node_id_map[fp->my_id] = node->id();
-        collective_comm_wrapper_map[fp->my_id] = fp;
+        collective_comm_node_id_map[fp->my_id] = node->id(); // 用于检查哪一个ET节点完成了 map<dataset_id, chakra_node_id>
+        collective_comm_wrapper_map[fp->my_id] = fp; // map<dataset_id, DataSet*>，用来完成id到fp的映射
         fp->set_notifier(this, EventType::CollectiveCommunicationFinished);
     } else if (comm_type == ChakraCollectiveCommType::ALL_TO_ALL) {
         DataSet* fp = sys->generate_all_to_all(comm_size, involved_dims,

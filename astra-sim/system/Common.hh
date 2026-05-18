@@ -49,7 +49,7 @@ enum class ComType {
     All_Reduce_All_to_All
 };
 
-enum class CollectiveOptimization { Baseline = 0, LocalBWAware };
+enum class CollectiveOptimization { Baseline = 0, LocalBWAware };//LocalBWAware：本地BW aware，AllReduce使用
 
 enum class CollectiveBarrier { Blocking = 0, Non_Blocking };
 
@@ -63,19 +63,19 @@ enum class IntraDimensionScheduling {
 };
 
 enum class InterDimensionScheduling {
-    Ascending = 0,
-    OnlineGreedy,
-    RoundRobin,
-    OfflineGreedy,
-    OfflineGreedyFlex
+    Ascending = 0, //升序传输
+    OnlineGreedy, //在线贪心，一般是all reduce的组织方式
+    RoundRobin, // 维度轮转，维度优先级[0,1,2]->[1,2,0]->[2,0,1]->[0,1,2]
+    OfflineGreedy, //预先规划
+    OfflineGreedyFlex //在OffinelineGreedy的基础上，允许动态调整chunk大小，更均衡
 };
 
-enum class InjectionPolicy {
-    Infinite = 0,
-    Aggressive,
-    SemiAggressive,
-    ExtraAggressive,
-    Normal
+enum class InjectionPolicy { //用于控制集合通信算法向底层网络发包的激进程度
+    Infinite = 0, //无限制注入数据，有包就发（Astra-sim没实现）
+    Aggressive, //一次性拔该节点发给所有其他节点的数据块全部并发注入，详见
+    SemiAggressive, //预留
+    ExtraAggressive, //预留
+    Normal //每次只允许发送 1 个 数据块。等前一个阶段（或者上一个数据块）完成并释放了资源后，才开始发送下一个。
 };
 
 enum class PacketRouting { Hardware = 0, Software };

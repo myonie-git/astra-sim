@@ -44,7 +44,7 @@ void PacketBundle::send_to_MA() {
                                      send_back, this);
 }
 
-void PacketBundle::send_to_NPU() {
+void PacketBundle::send_to_NPU() {//发送一个chunk
     sys->memBus->send_from_MA_to_NPU(transmition, size, needs_processing,
                                      send_back, this);
 }

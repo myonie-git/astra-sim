@@ -29,3 +29,6 @@ build/astra_htsim/build/
 
 # runs
 runs
+
+# Large generated graph frontend traces
+extern/graph_frontend/ddp_trace_out/linked_rank*.json

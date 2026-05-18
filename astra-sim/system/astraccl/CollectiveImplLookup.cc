@@ -201,7 +201,7 @@ namespace AstraSim {
 
         // Check if there is a per-node custom implementation first.
         if (bypass_rule != BypassRule::BYPASS_PERNODE_CUSTOM &&
-            bypass_rule != BypassRule::BYPASS_ALL_CUSTOM) {
+            bypass_rule != BypassRule::BYPASS_ALL_CUSTOM) { // 是否配置了专用的custom collective算法
             auto it = per_node_custom_impl.find(static_cast<int>(workload_node_id));
             if (it != per_node_custom_impl.end()) {
                 return std::vector<CollectiveImpl*>{it->second};
@@ -209,7 +209,7 @@ namespace AstraSim {
         }
 
         // Next, check if there is a global custom implementation for this collective type.
-        if (bypass_rule != BypassRule::BYPASS_ALL_CUSTOM) {
+        if (bypass_rule != BypassRule::BYPASS_ALL_CUSTOM) {//是否配置了全局算法
             auto git = global_custom_impl_per_coll.find(comm_type);
             if (git != global_custom_impl_per_coll.end()) {
                 return std::vector<CollectiveImpl*>{git->second};
